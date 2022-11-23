@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <thread>
 
 using namespace std;
 
@@ -12,6 +13,25 @@ using namespace std;
 
 // https://const-human.tistory.com/12
 
+void read_socket(int sock) {
+    while (true) {
+        char read_msg[max_len];
+        int cl_read = read(sock, read_msg, max_len - 1);
+        if (cl_read == -1) {
+            cout << "error in read" << endl;
+            exit(-4);
+        }
+        cout << read_msg << endl;
+    }
+}
+
+void write_socket(int sock) {
+    while (true) {
+        char write_msg[max_len];
+        scanf("%s", write_msg);
+        write(sock, write_msg, sizeof(write_msg));
+    }
+}
 int main(int argc, char* argv[]) {
     if (argc != 3) {
         cout << "Argument error!" << endl;
@@ -40,17 +60,9 @@ int main(int argc, char* argv[]) {
         cout << "error in connect" << endl;
         exit(-3);
     }
-    
-    while (true) {
-        cout << "input message: ";
-        scanf("%s", write_msg);
-        write(cl_sock, write_msg, sizeof(write_msg));
-        cl_read = read(cl_sock, read_msg, max_len - 1);
-        if (cl_read == -1) {
-            cout << "error in read" << endl;
-            exit(-4);
-        }
-        cout << read_msg << endl;
-    }
+    thread th1 = thread(read_socket, cl_sock);
+    thread th2 = thread(write_socket, cl_sock);
+    th1.join();
+    th2.join();
 
 }

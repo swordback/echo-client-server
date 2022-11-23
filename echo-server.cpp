@@ -18,43 +18,45 @@ char bc_recv_msg[max_len];
 int cl_sock[max_client];
 mutex mtx1;
 
-void read_write_client(int cl_sock, int mode) {
+void read_write_client(int sock, int mode) {
     int sv_read;
     char recv_msg[max_len];
     while (true) {
-        sv_read = read(cl_sock, recv_msg, max_len - 1);
+        sv_read = read(sock, recv_msg, max_len - 1);
         cout << recv_msg << endl;
         if (mode == 1) {
-            write(cl_sock, recv_msg, (strlen(recv_msg) + 1) * sizeof(char));
+            write(sock, recv_msg, (strlen(recv_msg) + 1) * sizeof(char));
         }
         else {
-            char okay_msg[] = "okay";
-            write(cl_sock, okay_msg, sizeof(okay_msg) + 1);
+            char okay_msg[5] = "okay";
+            write(sock, okay_msg, sizeof(okay_msg));
         }
     }
 }
 
-/*
-void read_client(int cl_sock, int mode) {
+void write_client(int sock, char* write_msg) {
+    write(sock, write_msg, (strlen(write_msg) + 1) * sizeof(char));
+}
+
+void read_client(int sock) {
     int sv_read;
     char recv_msg[max_len];
     while(true) {
         mtx1.lock();
-        sv_read = read(cl_sock, recv_msg, max_len - 1);
+        sv_read = read(sock, recv_msg, max_len - 1);
         cout << recv_msg << endl;
+        thread th1;
         for (int num1 = 0; num1 < max_client; num1++) {
             if (cl_sock[num1] > 0) {
-                thread 
+                th1 = thread(write_client, cl_sock[num1], recv_msg);
+                th1.join();
             }
         }
         mtx1.unlock();
     }
 }
 
-void write_client(int cl_sock, int mode) {
-    int num1;
-}
-*/
+
 
 int main(int argc, char* argv[]) {
     int mode = 0;
@@ -114,23 +116,28 @@ int main(int argc, char* argv[]) {
         cout << "bind() error" << endl;
         exit(-2);
     }
-
+    
+    sv_listen = listen(sv_sock, 10);
+    if (sv_listen == -1) {
+        exit(-3);
+        cout << "listen() error" << endl;
+    }
     while (true) {
-        
-        sv_listen = listen(sv_sock, 10);
-        if (sv_listen == -1) {
-            exit(-3);
-            cout << "listen() error" << endl;
-        }
-
         socklen_t cl_addr_size = sizeof(cl_addr);
         cl_sock[cl_sock_cnt] = accept(sv_sock, (struct sockaddr*)&cl_addr, &cl_addr_size);
         if (cl_sock[cl_sock_cnt] == -1) {
             exit(-4);
             cout << "accept() error" << endl;
         }
-        thread th1 = thread(read_write_client, cl_sock[cl_sock_cnt], mode);
+        thread th1;
+        if (mode == 2) {
+            th1 = thread(read_client, cl_sock[cl_sock_cnt]);
+        }
+        else {
+            th1 = thread(read_write_client, cl_sock[cl_sock_cnt], mode);
+        }
         cl_sock_cnt = (cl_sock_cnt + 1) % max_client;
-        th1.join();
+        cout << cl_sock_cnt << endl;
+        th1.detach();
     }
 }
